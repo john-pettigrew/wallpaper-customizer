@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
 	"image/jpeg"
 	_ "image/png"
 	"log"
 	"os"
+
+	"golang.org/x/image/draw"
 )
 
 type MyColor struct {
@@ -40,6 +41,11 @@ func main() {
 		log.Fatal("Error reading src")
 	}
 
+	// scale mask
+	finalMask := image.NewRGBA(dst.Bounds())
+	draw.ApproxBiLinear.Scale(finalMask, dst.Bounds(), mask, mask.Bounds(), draw.Over, nil)
+
+	// create changed dst
 	changedDst := flipImage(dst)
 	changedDst = invertImageColors(changedDst)
 
@@ -47,12 +53,7 @@ func main() {
 	finalDst := image.NewRGBA(image.Rect(0, 0, dstB.Dx(), dstB.Dy()))
 	draw.Draw(finalDst, finalDst.Bounds(), dst, dstB.Min, draw.Src)
 
-	maskB := mask.Bounds()
-	finalMask := image.NewRGBA(image.Rect(0, 0, dstB.Dx(), dstB.Dy()))
-	draw.Draw(finalMask, finalDst.Bounds(), mask, maskB.Min, draw.Src)
-
 	draw.DrawMask(finalDst, finalDst.Bounds(), changedDst, image.ZP, finalMask, image.ZP, draw.Over)
-	// draw.Draw(finalDst, finalDst.Bounds(), finalMask, image.ZP, draw.Over)
 
 	output, err := os.Create(outputPath)
 	if err != nil {
