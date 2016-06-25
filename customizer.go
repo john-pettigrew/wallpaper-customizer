@@ -3,25 +3,18 @@ package main
 import (
 	"fmt"
 	"image"
-	"image/color"
 	"image/jpeg"
 	_ "image/png"
 	"log"
 	"os"
 
+	"github.com/john-pettigrew/wallpaper-customizer/imgtransforms"
 	"golang.org/x/image/draw"
 )
 
-type MyColor struct {
-	r, g, b, a uint32
-}
-
-func (c MyColor) RGBA() (uint32, uint32, uint32, uint32) {
-	return c.r, c.g, c.b, c.a
-}
-
 func main() {
 
+	//Check parameters
 	if len(os.Args) < 4 {
 		fmt.Println("Usage: image-customizer [dst] [mask] [output]")
 		return
@@ -31,6 +24,7 @@ func main() {
 	maskPath := os.Args[2]
 	outputPath := os.Args[3]
 
+	//Read in images
 	dst, err := readImage(dstPath)
 	if err != nil {
 		log.Fatal("Error reading dst")
@@ -41,25 +35,29 @@ func main() {
 		log.Fatal("Error reading src")
 	}
 
-	// scale mask
+	//Scale mask
 	finalMask := image.NewRGBA(dst.Bounds())
 	draw.ApproxBiLinear.Scale(finalMask, dst.Bounds(), mask, mask.Bounds(), draw.Over, nil)
 
-	// create changed dst
-	changedDst := flipImage(dst)
-	changedDst = invertImageColors(changedDst)
+	//Create changed dst
+	changedDst := imgtransforms.Flip(dst)
+	changedDst = imgtransforms.InvertColors(changedDst)
 
+	//Convert dst
 	dstB := dst.Bounds()
-	finalDst := image.NewRGBA(image.Rect(0, 0, dstB.Dx(), dstB.Dy()))
+	finalDst := image.NewRGBA(dstB)
 	draw.Draw(finalDst, finalDst.Bounds(), dst, dstB.Min, draw.Src)
 
+	//Draw our image
 	draw.DrawMask(finalDst, finalDst.Bounds(), changedDst, image.ZP, finalMask, image.ZP, draw.Over)
 
+	//Create output file
 	output, err := os.Create(outputPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	//Save output file
 	options := jpeg.Options{Quality: 100}
 	err = jpeg.Encode(output, finalDst, &options)
 	if err != nil {
@@ -80,41 +78,4 @@ func readImage(file string) (image.Image, error) {
 	}
 
 	return image, nil
-}
-
-func flipImage(input image.Image) image.Image {
-
-	//create new image
-	bounds := input.Bounds()
-	newImg := image.NewRGBA(bounds)
-	for x := 0; x < bounds.Max.X; x++ {
-		for y := 0; y < bounds.Max.Y; y++ {
-			newImg.Set(bounds.Max.X-x, bounds.Max.Y-y, input.At(x, y))
-		}
-	}
-
-	return newImg
-}
-
-func invertImageColors(input image.Image) image.Image {
-
-	//create new image
-	bounds := input.Bounds()
-	newImg := image.NewRGBA(bounds)
-	var pixelColor color.Color
-	var r, g, b, a uint32
-	for x := 0; x < bounds.Max.X; x++ {
-		for y := 0; y < bounds.Max.Y; y++ {
-			r, g, b, a = input.At(x, y).RGBA()
-			pixelColor = MyColor{
-				r: 255 - r,
-				g: 255 - g,
-				b: 255 - b,
-				a: 255 - a,
-			}
-			newImg.Set(x, y, pixelColor)
-		}
-	}
-
-	return newImg
 }
