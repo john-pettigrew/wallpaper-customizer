@@ -66,7 +66,6 @@ func main() {
 }
 
 func readImage(file string) (image.Image, error) {
-	//dest
 	imageFile, err := os.Open(file)
 	if err != nil {
 		return nil, err
